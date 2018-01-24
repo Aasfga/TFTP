@@ -2,9 +2,9 @@ import logging
 import socket
 from threading import Lock, Thread
 
-from tftp.clients.receiver import ServerReceiver
-from tftp.clients.sender import ServerSender
-from tftp.clients.writer import *
+from tftp.abstract_workers.receiver import ServerReceiver
+from tftp.abstract_workers.sender import ServerSender
+from tftp.abstract_workers.writer import *
 from tftp.packet import *
 
 

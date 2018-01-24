@@ -1,5 +1,5 @@
-from tftp.clients.receiver import ClientReceiver
-from tftp.clients.writer import *
+from tftp.abstract_workers.receiver import ClientReceiver
+from tftp.abstract_workers.writer import *
 
 target = ("localhost", 6969)
 # cs = ClientSender(target)

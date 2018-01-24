@@ -81,28 +81,6 @@ class Receiver:
         writer.close()
 
 
-class ClientReceiver(Receiver):
-    def prepare(self, filename):
-        self.block_id = 1
-        server = self.target
-        self.target = None
-        time = 100
-        for i in range(10):
-            self.sock.sendto(rrq_packet(filename), server)
-            logging.info("Waiting {} seconds for data".format(time / 1000))
-            sleep(time / 1000)
-            self.target, data = self.receive_data()
-            if self.target is not None:
-                return len(data) < 512, data
-            else:
-                time *= 1.2
-        if self.target is None:
-            raise ConnectionError("No response from the server")
-
-    def file_error(self):
-        pass
-
-
 class ServerReceiver(Receiver):
     def prepare(self, filename):
         self.block_id = 0
@@ -110,4 +88,3 @@ class ServerReceiver(Receiver):
 
     def file_error(self):
         self.sock.sendto(error_packet(6, "File already exists"), self.target)
-
