@@ -15,68 +15,59 @@ def socket_empty(sock):
 
 
 class Sender:
-    def __init__(self, server_address):
-        self.target = server_address
+    def __init__(self, receiver):
+        self.receiver = receiver
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.block_id = None
+        self.block = None
 
     def prepare(self, filename):
         raise NotImplementedError
 
-    def file_error(self):
-        raise NotImplementedError
-
-    def receive_ack(self):
+    def receive_ack(self, receiver_mod):
         while not socket_empty(self.sock):
             try:
-                packet, address = self.sock.recvfrom(4096)
+                packet, address = self.sock.recvfrom(65527)
+                if address[0] != self.receiver[0]:
+                    logging.debug("Data from the strange sender was received")
                 op, data = parse_packet(packet)
-                if self.target is not None and self.target != address:
-                    logging.warning("Strange message from strange address: {}".format(address))
-                if op == 4 and data == self.block_id:
-                    return address
-                elif op == 4:
-                    logging.warning("Wrong block id {}:{}".format(self.block_id, data))
+                receiver_mod(address)
+                if address != self.receiver:
+                    logging.debug("Data from the wrong port was received")
+                if op == 4 and data == self.block:
+                    return True
+                elif op == 4 and data < self.block:
+                    logging.debug("Received ACK is too 'old'")
+                elif op == 4 and data > self.block:
+                    logging.debug("Received ACK is too 'young'")
                 elif op == 5:
                     raise ConnectionError(data)
                 else:
-                    logging.warning("strange op code {}".format(op))
+                    logging.debug("Received packet has wrong op code")
             except ValueError:
-                logging.warning("Received strange packet from the server")
-        return None
+                logging.debug("The received data has an incorrect format")
+        return False
 
-    def send_data(self, data):
-        data = data_packet(self.block_id, data)
-        time = 100
-        for i in range(10):
-            logging.info("Waiting {} second for ACK".format(time/1000))
-            self.sock.sendto(data, self.target)
-            sleep(time/1000)
-            if self.receive_ack() is not None:
+    def send_data(self, packet, receiver_mod):
+        time = 0.01
+        for i in range(7):
+            logging.debug("Waiting {} second for ACK".format(time))
+            self.sock.sendto(packet, self.receiver)
+            sleep(time)
+            if self.receive_ack(receiver_mod):
                 return
             else:
-                time *= 1.2
-        raise ConnectionError("Timeout")
+                time *= 2
+        raise TimeoutError("No response from the receiver")
 
     def send_file(self, filename):
-        try:
-            file = open(filename, "r")
-        except FileNotFoundError:
-            self.file_error()
-            logging.critical("File {} not found".format(filename))
-            raise FileNotFoundError()
-        self.prepare(filename)
-        eof = False
-        while not eof:
+        file = open(filename, "r")
+        end = self.prepare(filename)
+        while not end:
             data = file.read(512)
-            eof = len(data) < 512
-            self.send_data(data)
-            self.block_id = next_block_id(self.block_id)
+            self.send_data(data_packet(self.block, data), lambda x: None)
+            self.block = next_block_id(self.block)
+            end = len(data) < 512
 
+    def send_error(self, code, msg):
+        self.sock.sendto(error_packet(code, msg), self.receiver)
 
-class ServerSender(Sender):
-    def prepare(self, filename):
-        self.block_id = 1
-
-    def file_error(self):
-        self.sock.sendto(error_packet(1, "File not found"), self.target)

@@ -2,48 +2,62 @@ import logging
 import socket
 from threading import Lock, Thread
 
-from tftp.abstract_workers.receiver import ServerReceiver
-from tftp.abstract_workers.sender import ServerSender
+from tftp.abstract_workers.receiver import Receiver
+from tftp.abstract_workers.sender import Sender
 from tftp.abstract_workers.writer import *
 from tftp.packet import *
 
 
-class Sender(Thread):
-    def __init__(self, address, filename):
-        super().__init__()
+class ServerSender(Sender, Thread):
+    def prepare(self, filename):
+        self.block = 1
+        return False
+
+    def __init__(self, receiver, filename):
+        Sender.__init__(self, receiver)
+        Thread.__init__(self)
         self.filename = filename
-        self.client = address
 
     def run(self):
-        Server.add_client(self.client)
+        Server.add_client(self.receiver)
         try:
-            ServerSender(self.client).send_file(self.filename)
-        except ConnectionError as c_error:
-            logger.warning(c_error)
-        finally:
-            Server.remove_client(self.client)
+            self.send_file(self.filename)
+        except FileNotFoundError:
+            self.send_error(1, "File not found")
+        except ConnectionError as error:
+            logging.error(error)
+        except TimeoutError as error:
+            logging.error(error)
+        Server.remove_client(self.receiver)
 
 
-class Receiver(Thread):
-    def __init__(self, address, filename):
-        super().__init__()
+class ServerReceiver(Receiver, Thread):
+    def prepare(self, filename, writer):
+        self.block = 0
+        return False
+
+    def __init__(self, sender, filename, writer_class):
+        Receiver.__init__(self, sender, writer_class)
+        Thread.__init__(self)
         self.filename = filename
-        self.client = address
 
     def run(self):
-        Server.add_client(self.client)
+        Server.add_client(self.sender)
         try:
-            ServerReceiver(self.client, print_class).receive_file(self.filename)
-        except ConnectionError as c_error:
-            logger.warning(c_error)
-        finally:
-            Server.remove_client(self.client)
+            self.receive_file(self.filename)
+        except FileExistsError:
+            self.send_error(6, "File already exists")
+        except ConnectionError as error:
+            logging.error(error)
+        except TimeoutError as error:
+            logging.error(error)
+        Server.remove_client(self.sender)
 
 
 class Server:
     lock = Lock()
     clients = set()
-    saver = PrintWriter
+    writer = FileWriter
 
     @staticmethod
     def add_client(client):
@@ -69,24 +83,18 @@ class Server:
 
     def run(self):
         while True:
-            packet, client = self.sock.recvfrom(4096)
+            packet, client = self.sock.recvfrom(65527)
             if self.is_in_set(client):
-                # logger.info("known client wants to connect")
-                continue  # send error
+                continue
             try:
                 op, data = parse_packet(packet)
                 if op == 1:
-                    logger.info("Received read request")
-                    Sender(client, data).start()
+                    logging.info("Received read request")
+                    ServerSender(client, data).start()
                 elif op == 2:
-                    logger.info("Received write request")
-                    Receiver(client, data).start()
+                    logging.info("Received write request")
+                    ServerReceiver(client, data, Server.writer).start()
                 else:
-                    logger.warning("Wrong op code, expected 1 or 2, got {}".format(op))
-            except SyntaxError:
-                logger.error("can't parse packet")
-
-
-print_class = PrintWriter
-logger = logging.getLogger("server")
-logging.basicConfig(level=logging.DEBUG)
+                    logging.info("Incorrect op code was received".format(op))
+            except ValueError:
+                logging.info("Incorrect packet was received")
