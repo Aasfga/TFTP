@@ -17,7 +17,7 @@ class Worker:
     def __init__(self, target):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.block = None
-        self.data_size = 1024
+        self.data_size = 512 * 16
         self.window_size = 1
         if target[0] == "localhost":
             target = "127.0.0.1", target[1]
