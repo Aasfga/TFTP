@@ -1,10 +1,17 @@
+from tftp.abstract_workers.writer import *
 from tftp.client import *
+import time
 
-# logging.basicConfig(level=logging.DEBUG)
+from tftp.stopwatch import Stopwatch
+
+logging.basicConfig(level=logging.DEBUG)
 target = ("localhost", 6969)
-cs = ClientSender(target)
-cs.send_file("small_file.txt")
-cs = ClientSender(target)
-cs.send_file("big_file.txt")
-# cr = ClientReceiver(target, FileWriter)
-# cr.receive_file("big_file.txt")
+receiver = ClientReceiver(target, MD5Writer)
+stopwatch = Stopwatch()
+receiver.receive_file = stopwatch.watch("receive_file", receiver.receive_file)
+receiver.ask_for_data = stopwatch.watch("ask_for_data", receiver.ask_for_data)
+receiver.receive_file("med_1.in")
+print("Receive_file time: %.16f" % stopwatch.get_average("receive_file"))
+print("Average time for one packet: %.16f" % stopwatch.get_average("ask_for_data"))
+
+

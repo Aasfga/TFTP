@@ -19,7 +19,7 @@ class ServerSender(Sender, Thread):
         self.filename = filename
 
     def run(self):
-        Server.add_client(self.receiver)
+        Server.add_client(self.target)
         try:
             self.send_file(self.filename)
         except FileNotFoundError:
@@ -28,11 +28,11 @@ class ServerSender(Sender, Thread):
             logging.error(error)
         except TimeoutError as error:
             logging.error(error)
-        Server.remove_client(self.receiver)
+        Server.remove_client(self.target)
 
 
 class ServerReceiver(Receiver, Thread):
-    def prepare(self, filename, writer):
+    def prepare(self, filename):
         self.block = 0
         return False
 
@@ -63,6 +63,7 @@ class Server:
     def add_client(client):
         with Server.lock:
             Server.clients.add(client)
+        logging.info("Client {} was added".format(client))
 
     @staticmethod
     def remove_client(client):
@@ -71,6 +72,7 @@ class Server:
                 raise ValueError
             else:
                 Server.clients.remove(client)
+        logging.info("Client {} was removed".format(client))
 
     @staticmethod
     def is_in_set(client):

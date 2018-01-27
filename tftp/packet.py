@@ -7,7 +7,7 @@ def wrq_packet(filename):
 
 
 def data_packet(block, data):
-    return (3).to_bytes(2, "big") + block.to_bytes(2, "big") + data.encode()
+    return (3).to_bytes(2, "big") + block.to_bytes(2, "big") + data
 
 
 def ack_packet(block):
@@ -33,7 +33,7 @@ def parse_wrq(packet):
 def parse_data(packet):
     block = packet[2:4]
     data = packet[4:]
-    return int.from_bytes(block, "big"), data.decode()
+    return int.from_bytes(block, "big"), data
 
 
 def parse_ack(packet):

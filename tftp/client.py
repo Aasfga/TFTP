@@ -7,18 +7,18 @@ from time import sleep
 
 class ClientReceiver(Receiver):
     def change_address(self, address):
-        self.sender = address
+        self.target = address
 
-    def prepare(self, filename, writer):
+    def prepare(self, filename):
         self.block = 1
         data = self.ask_for_data(rrq_packet(filename), lambda x: self.change_address(x))
-        writer.save(data)
+        self.writer.save(data)
         return len(data) < 512
 
 
 class ClientSender(Sender):
     def change_address(self, address):
-        self.receiver = address
+        self.target = address
 
     def prepare(self, filename):
         self.block = 0

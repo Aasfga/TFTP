@@ -12,7 +12,7 @@ class FileWriter:
         return not os.path.isfile(filename)
 
     def open(self, filename):
-        self.file = open(filename, "w")
+        self.file = open(filename, "wb")
 
     def save(self, data):
         self.file.write(data)
@@ -56,7 +56,7 @@ class MD5Writer:
         pass
 
     def save(self, new_data):
-        self.hash.update(new_data.encode())
+        self.hash.update(new_data)
 
     def close(self):
         print(self.hash.hexdigest())
