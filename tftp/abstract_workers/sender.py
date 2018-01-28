@@ -5,6 +5,20 @@ from tftp.abstract_workers.worker import Worker
 from tftp.packet import *
 
 
+def in_range(start, end, x):
+    if start <= x <= end:
+        return True
+    if end < start and (x < end or x > start):
+        return True
+    return False
+
+
+def calc_diff(start, x):
+    if x < start:
+        x += 2 ** 16
+    return x - start
+
+
 class Sender(Worker):
     def prepare(self, filename):
         raise NotImplementedError
@@ -19,11 +33,12 @@ class Sender(Worker):
                 if address[0] != self.target[0]:
                     logging.debug("Data from the strange sender was received")
                 op, data = parse_packet(packet)
+                # logging.debug(data)
                 receiver_mod(address)
                 if address != self.target:
                     logging.debug("Data from the wrong port was received")
-                if op == 4 and data == self.block:
-                    return True
+                if op == 4 and in_range(self.block, self.block_end(), data):
+                    return data
                 elif op == 4 and data < self.block:
                     logging.debug("Received ACK is too 'old'")
                 elif op == 4 and data > self.block:
@@ -40,21 +55,31 @@ class Sender(Worker):
                 break
         return False
 
-    def send_data(self, packet, receiver_mod, opt_ack):
+    def send_data(self, packets, receiver_mod, opt_ack):
         time = self.START_TIME
         for i in range(self.ROUNDS):
-            self.sock.sendto(packet, self.target)
-            if self.receive_ack(receiver_mod, time, opt_ack):
-                return
-            else:
+            for p in packets:
+                self.sock.sendto(p, self.target)
+            ack = self.receive_ack(receiver_mod, time, opt_ack)
+            if ack < 0:
                 time *= self.CHANGE
+            else:
+                return ack
         raise TimeoutError("No response from the receiver")
 
     def send_file(self, filename):
         file = open(filename, "rb")
         end = self.prepare(filename)
+        data = []
         while not end:
-            data = file.read(self.block_size)
-            self.send_data(data_packet(self.block, data), lambda x: None, False)
+            while len(data) < self.window_size:
+                data.append(file.read(self.block_size))
+            data = list(filter(lambda x: len(x) > 0, data))
+            end = len(data[-1]) < self.block_size
+            packets = []
+            for i in range(self.window_size):
+                packets.append(data_packet(self.block_add(i), data[i]))
+            client_ack = self.send_data(packets, lambda x: None, False)
+            data = data[calc_diff(self.block, client_ack) + 1:]
+            self.block = client_ack
             self.block = self.block_add(1)
-            end = len(data) < self.block_size

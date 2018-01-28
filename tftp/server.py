@@ -11,7 +11,7 @@ from tftp.packet import *
 class ServerSender(Sender, Thread):
     def prepare(self, filename):
         self.block = 0
-        self.send_data(opt_packet({"blocksize": self.block_size, "windowsize": self.window_size}),
+        self.send_data([opt_packet({"blocksize": self.block_size, "windowsize": self.window_size})],
                        lambda _: None, False)
         self.block = self.block_add(1)
         return False

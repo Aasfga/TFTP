@@ -21,8 +21,8 @@ class ClientReceiver(Receiver):
         self.block = 0
         options = self.ask_for_data(
             rrq_packet(filename, {"blocksize": self.block_size, "windowsize": self.window_size}),
-            lambda x: self.change_address(x), True)
-        self.set_options(options)
+            lambda x: self.change_address(x), True, {})
+        self.set_options(options[-5])
         return False
 
 

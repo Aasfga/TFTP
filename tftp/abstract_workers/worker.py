@@ -6,13 +6,16 @@ from tftp.packet import *
 
 class Worker:
     UDP_SIZE = 65527
-    START_TIME = 0.03
-    MAX_TIME = 4
-    CHANGE = 2
+    START_TIME = 0.1
+    MAX_TIME = 100
+    CHANGE = 1
     ROUNDS = 1
 
     def prepare(self, filename):
         raise NotImplementedError
+
+    def block_end(self):
+        return self.block_add(self.window_size)
 
     def __init__(self, target, block_size, window_size):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
