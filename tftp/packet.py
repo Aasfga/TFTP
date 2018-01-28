@@ -29,6 +29,10 @@ def error_packet(error_code, msg):
     return (5).to_bytes(2, "big") + error_code.to_bytes(2, "big") + msg.encode() + "\x00".encode()
 
 
+def opt_packet(options):
+    return (6).to_bytes(2, "big") + convert_options(options)
+
+
 def parse_options(options):
     return {options[2 * i]: options[2 * i + 1] for i in range(len(options) // 2)}
 
@@ -64,7 +68,7 @@ def parse_error(packet):
 
 
 def parse_opt(packet):
-    return parse_options(packet[2:])
+    return parse_options(packet[2:].decode().split("\x00"))
 
 
 def parse_packet(packet):

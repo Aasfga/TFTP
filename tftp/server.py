@@ -10,7 +10,10 @@ from tftp.packet import *
 
 class ServerSender(Sender, Thread):
     def prepare(self, filename):
-        self.block = 1
+        self.block = 0
+        self.send_data(opt_packet({"blocksize": self.block_size, "windowsize": self.window_size}),
+                       lambda _: None, False)
+        self.block = self.block_add(1)
         return False
 
     def __init__(self, receiver, filename, block_size, window_size):
@@ -33,8 +36,12 @@ class ServerSender(Sender, Thread):
 
 class ServerReceiver(Receiver, Thread):
     def prepare(self, filename):
-        self.block = 0
-        return False
+        self.block = 1
+        data = self.ask_for_data(opt_packet({"blocksize": self.block_size, "windowsize": self.window_size}),
+                          lambda _: None,
+                          False)
+        self.writer.save(data)
+        return data < self.block_size
 
     def __init__(self, sender, filename, writer_class, block_size, window_size):
         Receiver.__init__(self, sender, writer_class, block_size, window_size)

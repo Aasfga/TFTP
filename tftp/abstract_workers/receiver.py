@@ -13,7 +13,7 @@ class Receiver(Worker):
     def prepare(self, filename):
         raise NotImplementedError
 
-    def receive_data(self, sender_mod, time):
+    def receive_data(self, sender_mod, time, opt_ack):
         while time > 0:
             try:
                 (packet, address), time = self.receive_packet(time)
@@ -31,6 +31,10 @@ class Receiver(Worker):
                     logging.debug("Received block is too 'young'")
                 elif op == 5:
                     raise ConnectionError(data)
+                elif opt_ack and op == 6:
+                    return data
+                elif op == 6:
+                    logging.debug("Received OACK packet")
                 else:
                     logging.debug("Received packet has wrong op code")
             except ValueError:
@@ -40,11 +44,11 @@ class Receiver(Worker):
                 break
         return None
 
-    def ask_for_data(self, ask_packet, sender_mod):
+    def ask_for_data(self, ask_packet, sender_mod, opt_ack):
         time = self.START_TIME
         for i in range(self.ROUNDS):
             self.sock.sendto(ask_packet, self.target)
-            data = self.receive_data(sender_mod, time)
+            data = self.receive_data(sender_mod, time, opt_ack)
             if data is not None:
                 return data
             else:
@@ -61,7 +65,7 @@ class Receiver(Worker):
             while not end:
                 ack = ack_packet(self.block)
                 self.block = self.block_add(1)
-                data = self.ask_for_data(ack, lambda _: None)
+                data = self.ask_for_data(ack, lambda _: None, False)
                 self.writer.save(data)
                 end = len(data) < self.block_size
             self.sock.sendto(ack_packet(self.block), self.target)
