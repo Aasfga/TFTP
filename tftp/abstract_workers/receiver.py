@@ -5,8 +5,8 @@ from tftp.packet import *
 
 
 class Receiver(Worker):
-    def __init__(self, sender, writer_class):
-        super().__init__(sender)
+    def __init__(self, sender, writer_class, block_size, window_size):
+        super().__init__(sender, block_size, window_size)
         self.writer = None
         self.writer_class = writer_class
 
@@ -63,7 +63,7 @@ class Receiver(Worker):
                 self.block = self.block_add(1)
                 data = self.ask_for_data(ack, lambda _: None)
                 self.writer.save(data)
-                end = len(data) < self.data_size
+                end = len(data) < self.block_size
             self.sock.sendto(ack_packet(self.block), self.target)
         except Exception:
             self.writer.delete(filename)

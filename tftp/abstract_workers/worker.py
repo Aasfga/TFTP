@@ -6,19 +6,19 @@ from tftp.packet import *
 
 class Worker:
     UDP_SIZE = 65527
-    START_TIME = 0.1
-    MAX_TIME = 100
-    CHANGE = 1
-    ROUNDS = int(round(math.log(MAX_TIME / START_TIME + 1, 2) - 1))
+    START_TIME = 0.03
+    MAX_TIME = 4
+    CHANGE = 2
+    ROUNDS = 1
 
     def prepare(self, filename):
         raise NotImplementedError
 
-    def __init__(self, target):
+    def __init__(self, target, block_size, window_size):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.block = None
-        self.data_size = 512 * 16
-        self.window_size = 1
+        self.block_size = block_size
+        self.window_size = window_size
         if target[0] == "localhost":
             target = "127.0.0.1", target[1]
         self.target = target
@@ -34,3 +34,9 @@ class Worker:
 
     def send_error(self, code, msg):
         self.sock.sendto(error_packet(code, msg), self.target)
+
+
+if Worker.CHANGE == 1:
+    Worker.ROUNDS = int(Worker.MAX_TIME / Worker.START_TIME)
+else:
+    Worker.ROUNDS = int(round(math.log(Worker.MAX_TIME / Worker.START_TIME + 1, 2) - 1))

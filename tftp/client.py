@@ -11,7 +11,7 @@ class ClientReceiver(Receiver):
 
     def prepare(self, filename):
         self.block = 1
-        data = self.ask_for_data(rrq_packet(filename), lambda x: self.change_address(x))
+        data = self.ask_for_data(rrq_packet(filename, {"blocksize": self.block_size, "windowsize":self.window_size}), lambda x: self.change_address(x))
         self.writer.save(data)
         return len(data) < 512
 
@@ -22,6 +22,6 @@ class ClientSender(Sender):
 
     def prepare(self, filename):
         self.block = 0
-        self.send_data(wrq_packet(filename), lambda x: self.change_address(x))
+        self.send_data(wrq_packet(filename, {"blocksize": self.block_size, "windowsize":self.window_size}), lambda x: self.change_address(x))
         self.block = 1
         return False

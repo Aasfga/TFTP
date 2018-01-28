@@ -13,8 +13,8 @@ class ServerSender(Sender, Thread):
         self.block = 1
         return False
 
-    def __init__(self, receiver, filename):
-        Sender.__init__(self, receiver)
+    def __init__(self, receiver, filename, block_size, window_size):
+        Sender.__init__(self, receiver, block_size, window_size)
         Thread.__init__(self)
         self.filename = filename
 
@@ -36,13 +36,13 @@ class ServerReceiver(Receiver, Thread):
         self.block = 0
         return False
 
-    def __init__(self, sender, filename, writer_class):
-        Receiver.__init__(self, sender, writer_class)
+    def __init__(self, sender, filename, writer_class, block_size, window_size):
+        Receiver.__init__(self, sender, writer_class, block_size, window_size)
         Thread.__init__(self)
         self.filename = filename
 
     def run(self):
-        Server.add_client(self.sender)
+        Server.add_client(self.target)
         try:
             self.receive_file(self.filename)
         except FileExistsError:
@@ -51,7 +51,7 @@ class ServerReceiver(Receiver, Thread):
             logging.error(error)
         except TimeoutError as error:
             logging.error(error)
-        Server.remove_client(self.sender)
+        Server.remove_client(self.target)
 
 
 class Server:
@@ -89,14 +89,17 @@ class Server:
             if self.is_in_set(client):
                 continue
             try:
-                op, data = parse_packet(packet)
+                op, (filename, options) = parse_packet(packet)
+                bs, ws = int(options["blocksize"]), int(options["windowsize"])
                 if op == 1:
-                    logging.info("Received read request")
-                    ServerSender(client, data).start()
+                    logging.info("Received read request. Block_size: {}, window_size: {}".format(bs, ws))
+                    ServerSender(client, filename, bs, ws).start()
                 elif op == 2:
-                    logging.info("Received write request")
-                    ServerReceiver(client, data, Server.writer).start()
-                else:
-                    logging.info("Incorrect op code was received".format(op))
+                    logging.info("Received write request. Block_size: {}, window_size: {}".format(bs, ws))
+                    ServerReceiver(client, filename, Server.writer, bs, ws).start()
             except ValueError:
                 logging.info("Incorrect packet was received")
+            except TypeError:
+                logging.info("Incorrect op code was received")
+            except KeyError:
+                logging.info("Incorrect options")

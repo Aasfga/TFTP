@@ -9,8 +9,8 @@ class Sender(Worker):
     def prepare(self, filename):
         raise NotImplementedError
 
-    def __init__(self, receiver):
-        super().__init__(receiver)
+    def __init__(self, receiver, block_size, window_size):
+        super().__init__(receiver, block_size, window_size)
 
     def receive_ack(self, receiver_mod, time):
         while time > 0:
@@ -50,7 +50,7 @@ class Sender(Worker):
         file = open(filename, "rb")
         end = self.prepare(filename)
         while not end:
-            data = file.read(self.data_size)
+            data = file.read(self.block_size)
             self.send_data(data_packet(self.block, data), lambda x: None)
             self.block = self.block_add(1)
-            end = len(data) < self.data_size
+            end = len(data) < self.block_size
