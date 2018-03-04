@@ -1,2 +1,2 @@
 # TFTP
-Implementation of the TFTP protocol
+Implementation of TFTP protocol
